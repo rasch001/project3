@@ -1,0 +1,11 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry matrix_mmac(
+    .param .u64 A0_ptr, .param .u64 B0_ptr, .param .u64 C0_ptr, .param .u64 D0_ptr
+)
+{
+    ;
+    ret;
+}

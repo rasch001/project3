@@ -1,0 +1,95 @@
+
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry matrix_mmac(
+    .param .u64 A_ptr,
+    .param .u64 B_ptr,
+    .param .u64 C_ptr,
+    .param .u64 D_ptr
+)
+{
+    // Assume a 4x4 matrix multiply-accumulate: D = A*B + C.
+    // Each thread computes one element. We assume blockDim.x=4, blockDim.y=4.
+    .reg .s32 tid_x, tid_y, idx;
+    .reg .s32 i, j;
+    .reg .f32 a_val, b_val, c_val, prod, sum;
+    .reg .u64 A, B, C, D;
+
+    // Load parameters.
+    ld.param.u64 A, [A_ptr];
+    ld.param.u64 B, [B_ptr];
+    ld.param.u64 C, [C_ptr];
+    ld.param.u64 D, [D_ptr];
+
+    // Get thread indices (assume 4x4 block).
+    mov.u32 tid_x, %tid.x;
+    mov.u32 tid_y, %tid.y;
+    mov.s32 i, tid_y;
+    mov.s32 j, tid_x;
+
+    // Initialize sum = 0.
+    mov.f32 sum, 0f00000000;
+
+    // For k = 0 to 3, unrolled loop.
+    // k = 0:
+    mul.lo.s32 idx, i, 4;
+    add.s32 idx, idx, 0;
+    mul.lo.s32 idx, idx, 4;
+    ld.global.f32 a_val, [A + idx];
+    mul.lo.s32 idx, 0, 4;
+    add.s32 idx, idx, j;
+    mul.lo.s32 idx, idx, 4;
+    ld.global.f32 b_val, [B + idx];
+    mul.f32 prod, a_val, b_val;
+    add.f32 sum, sum, prod;
+
+    // k = 1:
+    mul.lo.s32 idx, i, 4;
+    add.s32 idx, idx, 1;
+    mul.lo.s32 idx, idx, 4;
+    ld.global.f32 a_val, [A + idx];
+    mul.lo.s32 idx, 1, 4;
+    add.s32 idx, idx, j;
+    mul.lo.s32 idx, idx, 4;
+    ld.global.f32 b_val, [B + idx];
+    mul.f32 prod, a_val, b_val;
+    add.f32 sum, sum, prod;
+
+    // k = 2:
+    mul.lo.s32 idx, i, 4;
+    add.s32 idx, idx, 2;
+    mul.lo.s32 idx, idx, 4;
+    ld.global.f32 a_val, [A + idx];
+    mul.lo.s32 idx, 2, 4;
+    add.s32 idx, idx, j;
+    mul.lo.s32 idx, idx, 4;
+    ld.global.f32 b_val, [B + idx];
+    mul.f32 prod, a_val, b_val;
+    add.f32 sum, sum, prod;
+
+    // k = 3:
+    mul.lo.s32 idx, i, 4;
+    add.s32 idx, idx, 3;
+    mul.lo.s32 idx, idx, 4;
+    ld.global.f32 a_val, [A + idx];
+    mul.lo.s32 idx, 3, 4;
+    add.s32 idx, idx, j;
+    mul.lo.s32 idx, idx, 4;
+    ld.global.f32 b_val, [B + idx];
+    mul.f32 prod, a_val, b_val;
+    add.f32 sum, sum, prod;
+
+    // Add C[i,j]:
+    mul.lo.s32 idx, i, 4;
+    add.s32 idx, idx, j;
+    mul.lo.s32 idx, idx, 4;
+    ld.global.f32 c_val, [C + idx];
+    add.f32 sum, sum, c_val;
+
+    // Store result:
+    st.global.f32 [D + idx], sum;
+
+    ret;
+}
